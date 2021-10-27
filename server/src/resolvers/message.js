@@ -33,8 +33,6 @@ const messageResolver = {
         updateMessage:(parent, {id, text, userId}, { db })=> {
             const targetIndex = db.messages.findIndex(msg => msg.id === id)
             if(targetIndex < 0) throw Error('메시지가 없습니다.')
-            console.log(userId)
-            console.log(db.messages[targetIndex])
             if(db.messages[targetIndex].userId !== userId) throw Error('사용자가 다릅니다.')
 
             const newMsg = { ...db.messages[targetIndex], text }
