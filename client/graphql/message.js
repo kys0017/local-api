@@ -1,8 +1,8 @@
 import { gql } from 'graphql-tag'
 
 export const GET_MESSAGES = gql`
-    query GET_MESSAGES {
-        messages {
+    query GET_MESSAGES($cursor: ID) {
+        messages(cursor: $cursor) {
             id
             text
             userId

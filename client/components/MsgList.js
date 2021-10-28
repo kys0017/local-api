@@ -3,9 +3,9 @@ import MsgInput from "./MsgInput";
 import {fetcher, QueryKeys} from "../queryClient";
 import {useEffect, useRef, useState} from "react";
 import {useRouter} from "next/router";
-import {useQueryClient, useMutation, useQuery} from "react-query";
+import {useQueryClient, useMutation, useQuery, useInfiniteQuery} from "react-query";
 import {CREATE_MESSAGE, DELETE_MESSAGE, GET_MESSAGES, UPDATE_MESSAGE} from "../graphql/message";
-// import useInfiniteScroll from "../hooks/useInfiniteScroll";
+import useInfiniteScroll from "../hooks/useInfiniteScroll";
 
 const MsgList = ({smsgs, users}) => {
     const client = useQueryClient()
@@ -15,8 +15,8 @@ const MsgList = ({smsgs, users}) => {
     const [editingId, setEditingId] = useState(null);
 
     // const [hasNext, setHasNext] = useState(true);
-    // const fetchMoreEl = useRef(null);
-    // const intersecting = useInfiniteScroll(fetchMoreEl)
+    const fetchMoreEl = useRef(null);
+    const intersecting = useInfiniteScroll(fetchMoreEl)
 
     const {mutate: onCreate} = useMutation(({text}) => fetcher(CREATE_MESSAGE, {text, userId}), {
         onSuccess: ({ createMessage }) => {
@@ -55,13 +55,24 @@ const MsgList = ({smsgs, users}) => {
 
     const doneEdit = () => setEditingId(null)
 
-    const { data, error, isError } = useQuery(QueryKeys.MESSAGES, () => fetcher(GET_MESSAGES)) // stale: 엣 것. 미리 받아놓은 정보.
+    const { data, error, isError, fetchNextPage, hasNextPage } = useInfiniteQuery(
+        QueryKeys.MESSAGES,
+        ({ pageParam = ''}) => fetcher(GET_MESSAGES, {cursor: pageParam}),
+        {
+            getNextPageParam: ({ messages }) => {
+                return messages?.[messages.length -1]?.id
+            }
+        }
+    ) // stale: 엣 것. 미리 받아놓은 정보.
 
     useEffect(() => {
-        if(!data?.messages) return
+        if(!data?.pages) return
         console.log('msgs changed')
-        setMsgs(data?.messages)
-    }, [data?.messages]);
+        // const data.pages = [ { messages: [...]}, { messages: [...]} ] => [...]
+        const mergedMsgs = data.pages.flatMap(d => d.messages)
+        console.log({mergedMsgs})
+        setMsgs(mergedMsgs)
+    }, [data?.pages]);
 
 
     if (isError) {
@@ -69,9 +80,9 @@ const MsgList = ({smsgs, users}) => {
         return null;
     }
 
-    /*useEffect(() => {
-        if(intersecting && hasNext) getMessages()
-    }, [intersecting]);*/
+    useEffect(() => {
+        if(intersecting && hasNextPage) fetchNextPage()
+    }, [intersecting, hasNextPage]);
 
     return (
         <>
@@ -88,7 +99,7 @@ const MsgList = ({smsgs, users}) => {
                         user={users.find(u => userId === u.id)}
                     />) }
             </ul>
-            {/*<div ref={fetchMoreEl} />*/}
+            <div ref={fetchMoreEl} />
         </>
     )
 }
